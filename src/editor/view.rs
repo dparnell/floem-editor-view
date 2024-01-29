@@ -12,7 +12,7 @@ use floem::{
     reactive::{batch, create_effect, create_memo, create_rw_signal, Memo, RwSignal, Scope},
     style::{CursorStyle, Style},
     taffy::node::Node,
-    view::{View, ViewData},
+    view::{AnyWidget, View, ViewData, Widget},
     views::{clip, container, empty, label, scroll, stack, Decorators},
     EventPropagation, Renderer,
 };
@@ -44,8 +44,8 @@ pub enum DiffSectionKind {
 
 #[derive(Clone, PartialEq)]
 pub struct DiffSection {
-    /// The y index that the diff section is at.  
-    /// This is multiplied by the line height to get the y position.  
+    /// The y index that the diff section is at.
+    /// This is multiplied by the line height to get the y position.
     /// So this can roughly be considered as the `VLine of the start of this diff section, but it
     /// isn't necessarily convertable to a `VLine` due to jumping over empty code sections.
     pub y_idx: usize,
@@ -59,11 +59,11 @@ pub struct DiffSection {
 #[derive(Clone, PartialEq)]
 pub struct ScreenLines {
     pub lines: Rc<Vec<RVLine>>,
-    /// Guaranteed to have an entry for each `VLine` in `lines`  
+    /// Guaranteed to have an entry for each `VLine` in `lines`
     /// You should likely use accessor functions rather than this directly.
     pub info: Rc<HashMap<RVLine, LineInfo>>,
     pub diff_sections: Option<Rc<Vec<DiffSection>>>,
-    /// The base y position that all the y positions inside `info` are relative to.  
+    /// The base y position that all the y positions inside `info` are relative to.
     /// This exists so that if a text layout is created outside of the view, we don't have to
     /// completely recompute the screen lines (or do somewhat intricate things to update them)
     /// we simply have to update the `base_y`.
@@ -94,7 +94,7 @@ impl ScreenLines {
         });
     }
 
-    /// Get the line info for the given rvline.  
+    /// Get the line info for the given rvline.
     pub fn info(&self, rvline: RVLine) -> Option<LineInfo> {
         let info = self.info.get(&rvline)?;
         let base = self.base.get();
@@ -110,12 +110,12 @@ impl ScreenLines {
         self.lines.first().copied().zip(self.lines.last().copied())
     }
 
-    /// Iterate over the line info, copying them with the full y positions.  
+    /// Iterate over the line info, copying them with the full y positions.
     pub fn iter_line_info(&self) -> impl Iterator<Item = LineInfo> + '_ {
         self.lines.iter().map(|rvline| self.info(*rvline).unwrap())
     }
 
-    /// Iterate over the line info within the range, copying them with the full y positions.  
+    /// Iterate over the line info within the range, copying them with the full y positions.
     /// If the values are out of range, it is clamped to the valid lines within.
     pub fn iter_line_info_r(
         &self,
@@ -148,10 +148,10 @@ impl ScreenLines {
             // Hacky method to get an empty iterator of the same type
             self.lines.get(0..0)
         }
-        .into_iter()
-        .flatten()
-        .copied()
-        .map(|rvline| self.info(rvline).unwrap())
+            .into_iter()
+            .flatten()
+            .copied()
+            .map(|rvline| self.info(rvline).unwrap())
     }
 
     pub fn iter_vline_info(&self) -> impl Iterator<Item = VLineInfo<()>> + '_ {
@@ -183,8 +183,8 @@ impl ScreenLines {
     }
 
     /// Iterate over the real lines underlying the visual lines on the screen with the y position
-    /// of their layout.  
-    /// (line, y)  
+    /// of their layout.
+    /// (line, y)
     pub fn iter_lines_y(&self) -> impl Iterator<Item = (usize, f64)> + '_ {
         let mut last_line = None;
         self.lines.iter().filter_map(move |vline| {
@@ -304,7 +304,7 @@ impl ScreenLines {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScreenLinesBase {
-    /// The current/previous viewport.  
+    /// The current/previous viewport.
     /// Used for determining whether there were any changes, and the `y0` serves as the
     /// base for positioning the lines.
     pub active_viewport: Rect,
@@ -827,6 +827,19 @@ impl View for EditorView {
         &mut self.data
     }
 
+    fn build(self) -> AnyWidget {
+        Box::new(self)
+    }
+}
+impl Widget for EditorView {
+    fn view_data(&self) -> &ViewData {
+        &self.data
+    }
+
+    fn view_data_mut(&mut self) -> &mut ViewData {
+        &mut self.data
+    }
+
     fn update(&mut self, _cx: &mut UpdateCx, _state: Box<dyn std::any::Any>) {}
 
     fn layout(&mut self, cx: &mut LayoutCx) -> floem::taffy::prelude::Node {
@@ -948,36 +961,36 @@ pub fn editor_view(
         is_active,
         inner_node: None,
     }
-    .on_event(EventListener::ImePreedit, move |event| {
-        if !is_active.get_untracked() {
-            return EventPropagation::Continue;
-        }
+        .on_event(EventListener::ImePreedit, move |event| {
+            if !is_active.get_untracked() {
+                return EventPropagation::Continue;
+            }
 
-        if let Event::ImePreedit { text, cursor } = event {
-            editor.with_untracked(|ed| {
-                if text.is_empty() {
+            if let Event::ImePreedit { text, cursor } = event {
+                editor.with_untracked(|ed| {
+                    if text.is_empty() {
+                        ed.clear_preedit();
+                    } else {
+                        let offset = ed.cursor.with_untracked(|c| c.offset());
+                        ed.set_preedit(text.clone(), *cursor, offset);
+                    }
+                });
+            }
+            EventPropagation::Stop
+        })
+        .on_event(EventListener::ImeCommit, move |event| {
+            if !is_active.get_untracked() {
+                return EventPropagation::Continue;
+            }
+
+            if let Event::ImeCommit(text) = event {
+                editor.with_untracked(|ed| {
                     ed.clear_preedit();
-                } else {
-                    let offset = ed.cursor.with_untracked(|c| c.offset());
-                    ed.set_preedit(text.clone(), *cursor, offset);
-                }
-            });
-        }
-        EventPropagation::Stop
-    })
-    .on_event(EventListener::ImeCommit, move |event| {
-        if !is_active.get_untracked() {
-            return EventPropagation::Continue;
-        }
-
-        if let Event::ImeCommit(text) = event {
-            editor.with_untracked(|ed| {
-                ed.clear_preedit();
-                ed.receive_char(text);
-            });
-        }
-        EventPropagation::Stop
-    })
+                    ed.receive_char(text);
+                });
+            }
+            EventPropagation::Stop
+        })
 }
 
 #[derive(Clone, Debug)]
@@ -987,7 +1000,7 @@ pub struct LineRegion {
     pub rvline: RVLine,
 }
 
-/// Get the render information for a caret cursor at the given `offset`.  
+/// Get the render information for a caret cursor at the given `offset`.
 pub fn cursor_caret(
     ed: &Editor,
     offset: usize,
@@ -1084,24 +1097,24 @@ pub fn editor_container_view(
                     .style(move |s| s.size_pct(100.0, 100.0)),
                 empty().style(move |s| s.absolute().width_pct(100.0)),
             ))
-            .on_resize(move |rect| {
-                editor_rect.set(rect);
-            })
-            .style(|s| s.absolute().size_pct(100.0, 100.0)),
+                .on_resize(move |rect| {
+                    editor_rect.set(rect);
+                })
+                .style(|s| s.absolute().size_pct(100.0, 100.0)),
         )
-        .style(|s| s.size_pct(100.0, 100.0)),
+            .style(|s| s.size_pct(100.0, 100.0)),
     ))
-    .on_cleanup(move || {
-        // TODO: should we have some way for doc to tell us if we're allowed to cleanup the editor?
-        let editor = editor.get_untracked();
-        editor.cx.get().dispose();
-    })
-    // TODO(minor): only depend on style
-    .style(move |s| {
-        s.flex_col()
-            .size_pct(100.0, 100.0)
-            .background(editor.get().color(EditorColor::Background))
-    })
+        .on_cleanup(move || {
+            // TODO: should we have some way for doc to tell us if we're allowed to cleanup the editor?
+            let editor = editor.get_untracked();
+            editor.cx.get().dispose();
+        })
+        // TODO(minor): only depend on style
+        .style(move |s| {
+            s.flex_col()
+                .size_pct(100.0, 100.0)
+                .background(editor.get().color(EditorColor::Background))
+        })
 }
 
 /// Default editor gutter
@@ -1124,28 +1137,28 @@ pub fn editor_gutter(editor: RwSignal<Editor>) -> impl View {
             label(move || (editor.get().last_line() + 1).to_string()),
             empty().style(move |s| s.width(padding_right)),
         ))
-        .style(|s| s.height_pct(100.0)),
+            .style(|s| s.height_pct(100.0)),
         clip(
             stack((editor_gutter_view(editor)
-                .on_resize(move |rect| {
-                    gutter_rect.set(rect);
-                })
-                .on_event_stop(EventListener::PointerWheel, move |event| {
-                    if let Event::PointerWheel(pointer_event) = event {
-                        scroll_delta.set(pointer_event.delta);
-                    }
-                })
-                .style(|s| s.size_pct(100.0, 100.0)),))
-            .style(|s| s.size_pct(100.0, 100.0)),
+                       .on_resize(move |rect| {
+                           gutter_rect.set(rect);
+                       })
+                       .on_event_stop(EventListener::PointerWheel, move |event| {
+                           if let Event::PointerWheel(pointer_event) = event {
+                               scroll_delta.set(pointer_event.delta);
+                           }
+                       })
+                       .style(|s| s.size_pct(100.0, 100.0)),))
+                .style(|s| s.size_pct(100.0, 100.0)),
         )
-        .style(move |s| {
-            s.absolute()
-                .size_pct(100.0, 100.0)
-                .padding_left(padding_left)
-                .padding_right(padding_right)
-        }),
+            .style(move |s| {
+                s.absolute()
+                    .size_pct(100.0, 100.0)
+                    .padding_left(padding_left)
+                    .padding_right(padding_right)
+            }),
     ))
-    .style(|s| s.height_pct(100.0))
+        .style(|s| s.height_pct(100.0))
 }
 
 fn editor_content(
@@ -1228,54 +1241,54 @@ fn editor_content(
                 }
             })
     })
-    .on_move(move |point| {
-        window_origin.set(point);
-    })
-    .scroll_to(move || scroll_to.get().map(Vec2::to_point))
-    .scroll_delta(move || scroll_delta.get())
-    .ensure_visible(move || {
-        let editor = editor.get_untracked();
-        let cursor = cursor.get();
-        let offset = cursor.offset();
-        editor.doc.track();
-        // TODO:?
-        // editor.kind.track();
+        .on_move(move |point| {
+            window_origin.set(point);
+        })
+        .scroll_to(move || scroll_to.get().map(Vec2::to_point))
+        .scroll_delta(move || scroll_delta.get())
+        .ensure_visible(move || {
+            let editor = editor.get_untracked();
+            let cursor = cursor.get();
+            let offset = cursor.offset();
+            editor.doc.track();
+            // TODO:?
+            // editor.kind.track();
 
-        let LineRegion { x, width, rvline } =
-            cursor_caret(&editor, offset, !cursor.is_insert(), cursor.affinity);
+            let LineRegion { x, width, rvline } =
+                cursor_caret(&editor, offset, !cursor.is_insert(), cursor.affinity);
 
-        // TODO: don't assume line-height is constant
-        let line_height = f64::from(editor.line_height(0));
+            // TODO: don't assume line-height is constant
+            let line_height = f64::from(editor.line_height(0));
 
-        // TODO: is there a good way to avoid the calculation of the vline here?
-        let vline = editor.vline_of_rvline(rvline);
-        let rect =
-            Rect::from_origin_size((x, vline.get() as f64 * line_height), (width, line_height))
-                .inflate(10.0, 0.0);
+            // TODO: is there a good way to avoid the calculation of the vline here?
+            let vline = editor.vline_of_rvline(rvline);
+            let rect =
+                Rect::from_origin_size((x, vline.get() as f64 * line_height), (width, line_height))
+                    .inflate(10.0, 0.0);
 
-        let viewport = viewport.get_untracked();
-        let smallest_distance = (viewport.y0 - rect.y0)
-            .abs()
-            .min((viewport.y1 - rect.y0).abs())
-            .min((viewport.y0 - rect.y1).abs())
-            .min((viewport.y1 - rect.y1).abs());
-        let biggest_distance = (viewport.y0 - rect.y0)
-            .abs()
-            .max((viewport.y1 - rect.y0).abs())
-            .max((viewport.y0 - rect.y1).abs())
-            .max((viewport.y1 - rect.y1).abs());
-        let jump_to_middle =
-            biggest_distance > viewport.height() && smallest_distance > viewport.height() / 2.0;
+            let viewport = viewport.get_untracked();
+            let smallest_distance = (viewport.y0 - rect.y0)
+                .abs()
+                .min((viewport.y1 - rect.y0).abs())
+                .min((viewport.y0 - rect.y1).abs())
+                .min((viewport.y1 - rect.y1).abs());
+            let biggest_distance = (viewport.y0 - rect.y0)
+                .abs()
+                .max((viewport.y1 - rect.y0).abs())
+                .max((viewport.y0 - rect.y1).abs())
+                .max((viewport.y1 - rect.y1).abs());
+            let jump_to_middle =
+                biggest_distance > viewport.height() && smallest_distance > viewport.height() / 2.0;
 
-        if jump_to_middle {
-            rect.inflate(0.0, viewport.height() / 2.0)
-        } else {
-            let mut rect = rect;
-            let cursor_surrounding_lines = editor.cursor_surrounding_lines.get_untracked() as f64;
-            rect.y0 -= cursor_surrounding_lines * line_height;
-            rect.y1 += cursor_surrounding_lines * line_height;
-            rect
-        }
-    })
-    .style(|s| s.absolute().size_pct(100.0, 100.0))
+            if jump_to_middle {
+                rect.inflate(0.0, viewport.height() / 2.0)
+            } else {
+                let mut rect = rect;
+                let cursor_surrounding_lines = editor.cursor_surrounding_lines.get_untracked() as f64;
+                rect.y0 -= cursor_surrounding_lines * line_height;
+                rect.y1 += cursor_surrounding_lines * line_height;
+                rect
+            }
+        })
+        .style(|s| s.absolute().size_pct(100.0, 100.0))
 }
