@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+members = ["editor-core", "examples/*"]
+
+[workspace.package]
+license = "MIT"
+version = "0.1.1"
+
+[package]
+name = "floem-text-editor"
+version = "0.1.0"
+edition = "2021"
+description = "The editor view from the Lapce text editor"
+
+[workspace.dependencies]
+serde = "1.0"
+lapce-xi-rope = { version = "0.3.2", features = ["serde"] }
+strum = "0.21.0"
+strum_macros = "0.21.1"
+
+[dependencies]
+floem = { git = "https://github.com/lapce/floem.git", rev = "9c88792baa76a196a0469da358b88764e8af5e6d" }
+lapce-xi-rope = { version = "0.3.2", features = ["serde"] }
+floem-editor-core = { path = "editor-core", version = "0.1.0" }
+smallvec = "1.13.0"
+downcast-rs = { version = "1.2.0" }
+strum = "0.21.0"
+strum_macros = "0.21.1"
