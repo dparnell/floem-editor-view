@@ -9,7 +9,6 @@ license.workspace = true
 serde = { workspace = true, optional = true }
 strum.workspace = true
 strum_macros.workspace = true
-
 lapce-xi-rope.workspace = true
 
 itertools = "0.10.1"
