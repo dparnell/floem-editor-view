@@ -16,8 +16,8 @@ description = "The editor view from the Lapce text editor"
 floem = { git = "https://github.com/lapce/floem.git" }
 serde = "1.0"
 lapce-xi-rope = { version = "0.3.2", features = ["serde"] }
-strum = "0.21.0"
-strum_macros = "0.21.1"
+strum = "0.26.1"
+strum_macros = "0.26.1"
 
 [dependencies]
 floem = { git = "https://github.com/lapce/floem.git" }
@@ -26,5 +26,5 @@ lapce-xi-rope = { version = "0.3.2", features = ["serde"] }
 floem-editor-core = { path = "editor-core", version = "0.1.0" }
 smallvec = "1.13.0"
 downcast-rs = { version = "1.2.0" }
-strum = "0.21.0"
-strum_macros = "0.21.1"
+strum = "0.26.1"
+strum_macros = "0.26.1"

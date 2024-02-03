@@ -862,7 +862,7 @@ impl Widget for EditorView {
             let line_height = f64::from(editor.line_height(0));
 
             let width = editor.max_line_width() + 20.0;
-            let height = line_height * editor.last_vline().get() as f64;
+            let height = line_height * (editor.last_vline().get() + 1) as f64;
 
             let style = Style::new().width(width).height(height).to_taffy_style();
             cx.set_style(inner_node, style);
@@ -917,6 +917,12 @@ pub fn editor_view(
     create_effect(move |_| {
         doc.track();
         style.track();
+        id.request_layout();
+    });
+
+    let lines = ed.screen_lines;
+    create_effect(move |_| {
+        lines.track();
         id.request_layout();
     });
 
