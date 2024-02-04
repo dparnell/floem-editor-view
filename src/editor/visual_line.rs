@@ -1982,13 +1982,13 @@ pub fn hit_position_aff(this: &TextLayout, idx: usize, before: bool) -> HitPosit
 #[cfg(test)]
 mod tests {
     use std::{borrow::Cow, cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
+    use floem::cosmic_text::{Attrs, AttrsList, FamilyOwned, TextLayout, Wrap};
 
     use floem_editor_core::{
         buffer::rope_text::{RopeText, RopeTextRef},
         cursor::CursorAffinity,
     };
-    use floem_reactive::Scope;
-    use floem_renderer::cosmic_text::{Attrs, AttrsList, FamilyOwned, TextLayout, Wrap};
+    use floem::reactive::Scope;
     use lapce_xi_rope::Rope;
     use smallvec::smallvec;
 
